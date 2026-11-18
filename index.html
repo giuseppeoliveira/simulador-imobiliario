@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Simulador de Financiamento Imobiliário para corretores">
+  <title>Simulador Imobiliário</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app" id="app">
+    <header class="topbar">
+      <div class="topbar__brand">
+        <div class="brand-mark" aria-hidden="true"></div>
+        <div>
+          <h1>Simulador Imobiliário</h1>
+          <p class="topbar__subtitle">Simulações financeiras para corretores</p>
+        </div>
+      </div>
+      <div class="topbar__meta">
+        <label class="field field--inline">
+          <span>Corretor</span>
+          <input type="text" id="corretor" name="corretor" placeholder="Nome do corretor" autocomplete="name" maxlength="120">
+        </label>
+        <label class="field field--inline">
+          <span>Data da simulação</span>
+          <input type="date" id="dataSimulacao" name="dataSimulacao">
+        </label>
+      </div>
+    </header>
+
+    <div class="caixa-launch no-print">
+      <div class="caixa-launch__text">
+        <strong>Simulador oficial da Caixa</strong>
+        <span>Consulte parcela, % financiado e condições no site da Caixa e traga os valores para cá.</span>
+      </div>
+      <a
+        class="btn btn--caixa"
+        href="https://simuladorhabitacao.caixa.gov.br/home"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Abrir simulador da Caixa
+      </a>
+    </div>
+
+    <main>
+      <section id="view-form" class="view view--active" aria-label="Formulário de simulação">
+        <div class="alerts" id="alerts" role="status" aria-live="polite"></div>
+
+        <!-- ETAPA 1 -->
+        <section class="panel">
+          <div class="panel__header">
+            <p class="step-label">Etapa 1</p>
+            <h2>Imóvel e entrada pela Caixa</h2>
+            <p>Informe o valor do imóvel e o percentual financiado. A entrada necessária é calculada automaticamente.</p>
+          </div>
+          <div class="grid grid--2">
+            <label class="field">
+              <span>Valor do imóvel (R$)</span>
+              <input type="text" inputmode="decimal" class="money" id="valorImovel" data-required="true" placeholder="0,00">
+            </label>
+            <label class="field">
+              <span>Financiamento aprovado pela Caixa (%)</span>
+              <input type="text" inputmode="decimal" class="percent" id="percentualFinanciamento" data-required="true" placeholder="Ex.: 80,00">
+            </label>
+          </div>
+
+          <div class="entrada-edit">
+            <label class="field">
+              <span>Entrada necessária (R$)</span>
+              <input type="text" inputmode="decimal" class="money" id="entradaNegociada" readonly tabindex="-1" placeholder="Calculada automaticamente">
+            </label>
+            <div class="entrada-edit__actions">
+              <button type="button" class="btn btn--ghost btn--small" id="btnAlterarEntrada">Quero dar entrada maior</button>
+              <button type="button" class="btn btn--ghost btn--small" id="btnResetEntrada" hidden>Usar cálculo pelo %</button>
+            </div>
+          </div>
+          <p class="hint" id="hintEntradaEdit">
+            A entrada é calculada pelo %. Se aumentar a entrada, o valor financiado e o % são reajustados automaticamente.
+          </p>
+
+          <div class="result-strip" aria-live="polite">
+            <div class="result-strip__item">
+              <span>Valor financiado</span>
+              <strong id="outValorFinanciado">R$ 0,00</strong>
+            </div>
+            <div class="result-strip__item result-strip__item--accent">
+              <span>Entrada necessária</span>
+              <strong id="outEntradaCaixa">R$ 0,00</strong>
+            </div>
+            <div class="result-strip__item">
+              <span>% da entrada</span>
+              <strong id="outPercEntrada">0,00%</strong>
+            </div>
+            <div class="result-strip__item">
+              <span>% financiado</span>
+              <strong id="outPercFinanciado">0,00%</strong>
+            </div>
+          </div>
+        </section>
+
+        <!-- ETAPA 2 -->
+        <section class="panel">
+          <div class="panel__header">
+            <p class="step-label">Etapa 2</p>
+            <h2>Financiamento (parcela da Caixa)</h2>
+            <p>Informe o prazo e o valor da parcela mensal do percentual financiado.</p>
+          </div>
+          <div class="grid grid--3">
+            <label class="field">
+              <span>Prazo do financiamento (meses)</span>
+              <input type="number" id="prazoFinanciamento" min="1" step="1" data-required="true" placeholder="Ex.: 360">
+            </label>
+            <label class="field">
+              <span>Parcela mensal do financiamento (R$)</span>
+              <input type="text" inputmode="decimal" class="money" id="parcelaFinanciamento" data-required="true" placeholder="0,00">
+            </label>
+            <label class="field">
+              <span>Data de início do financiamento</span>
+              <input type="date" id="finInicio" data-required="true">
+            </label>
+          </div>
+          <div class="result-strip result-strip--soft">
+            <div class="result-strip__item">
+              <span>Término estimado</span>
+              <strong id="outFinFimLabel">—</strong>
+            </div>
+            <div class="result-strip__item">
+              <span>Total das parcelas</span>
+              <strong id="outTotalFinLabel">R$ 0,00</strong>
+            </div>
+            <div class="result-strip__item">
+              <span>Juros estimados</span>
+              <strong id="outJurosFin">R$ 0,00</strong>
+            </div>
+            <div class="result-strip__item">
+              <span>% a mais s/ imóvel (parcial)</span>
+              <strong id="outPercAMaisParcial">0,00%</strong>
+            </div>
+          </div>
+          <input type="hidden" id="finParcValor" value="">
+          <input type="hidden" id="finParcQtd" value="">
+          <input type="hidden" id="finFim" value="">
+        </section>
+
+        <!-- ETAPA 3 -->
+        <section class="panel">
+          <div class="panel__header">
+            <p class="step-label">Etapa 3</p>
+            <h2>Composição da entrada</h2>
+            <p>
+              Defina primeiro a <strong>comissão</strong> e depois o <strong>sinal</strong>.
+              O valor abatido da entrada é <strong>sinal − comissão</strong>. O restante é parcelado automaticamente.
+              No PDF do cliente a comissão fica embutida no sinal e no valor do imóvel (não aparece separada).
+            </p>
+          </div>
+
+          <div class="entrada-summary entrada-summary--4">
+            <div>
+              <span>Entrada total</span>
+              <strong id="outEntradaTotalComp">R$ 0,00</strong>
+            </div>
+            <div>
+              <span>Abatido (sinal − comissão)</span>
+              <strong id="outAbatimentoEntrada">R$ 0,00</strong>
+            </div>
+            <div>
+              <span>Sinal (total pago no ato)</span>
+              <strong id="outSinalResumo">R$ 0,00</strong>
+            </div>
+            <div>
+              <span>Restante a parcelar</span>
+              <strong id="outRestanteEntrada">R$ 0,00</strong>
+            </div>
+          </div>
+
+          <div class="payment-blocks">
+            <article class="payment-card payment-card--entrada">
+              <h3>1) Comissão do corretor</h3>
+              <div class="commission-box commission-box--flush">
+                <div class="commission-box__title">
+                  <h4>Informe por % do imóvel ou por valor</h4>
+                  <div class="toggle" role="group" aria-label="Forma de informar a comissão">
+                    <button type="button" class="toggle__btn is-active" id="btnComissaoPerc" data-mode="percent">Por %</button>
+                    <button type="button" class="toggle__btn" id="btnComissaoValor" data-mode="value">Por valor (R$)</button>
+                  </div>
+                </div>
+                <div class="grid grid--3">
+                  <label class="field">
+                    <span>Comissão (%)</span>
+                    <input type="text" inputmode="decimal" class="percent" id="comissaoPerc" placeholder="0,00">
+                  </label>
+                  <label class="field">
+                    <span>Comissão (R$)</span>
+                    <input type="text" inputmode="decimal" class="money" id="comissaoValor" placeholder="0,00">
+                  </label>
+                  <label class="field">
+                    <span>Valor da comissão</span>
+                    <input type="text" id="comissaoCalculada" readonly tabindex="-1" placeholder="R$ 0,00">
+                  </label>
+                </div>
+                <p class="hint">Uso interno do corretor. No relatório do cliente este valor não aparece separado.</p>
+              </div>
+            </article>
+
+            <article class="payment-card payment-card--entrada">
+              <h3>2) Sinal (ato da compra)</h3>
+              <div class="grid grid--3">
+                <label class="field">
+                  <span>Valor do sinal (R$)</span>
+                  <input type="text" inputmode="decimal" class="money" id="sinalValor" placeholder="0,00">
+                </label>
+                <label class="field">
+                  <span>Data inicial do sinal</span>
+                  <input type="date" id="sinalData">
+                </label>
+                <label class="field">
+                  <span>Parcelas do sinal</span>
+                  <input type="number" id="sinalParcelas" min="1" step="1" value="1">
+                </label>
+              </div>
+              <div class="grid grid--2" style="margin-top: 0.75rem;">
+                <label class="field">
+                  <span>Abatido da entrada (sinal − comissão)</span>
+                  <input type="text" id="outAbatimentoCampo" readonly tabindex="-1" placeholder="R$ 0,00">
+                </label>
+                <label class="field">
+                  <span>Total pago no ato (sinal)</span>
+                  <input type="text" id="outPagamentoSinal" readonly tabindex="-1" placeholder="R$ 0,00">
+                </label>
+              </div>
+              <p class="hint">O sinal já inclui a comissão no desembolso. Só a parte <strong>sinal − comissão</strong> reduz a entrada.</p>
+            </article>
+
+            <article class="payment-card payment-card--entrada">
+              <h3>3) Entrada parcelada (restante)</h3>
+              <div class="grid grid--4">
+                <label class="field">
+                  <span>Valor restante (calculado)</span>
+                  <input type="text" id="entradaParcValor" readonly tabindex="-1" placeholder="R$ 0,00">
+                </label>
+                <label class="field">
+                  <span>Quantidade de parcelas</span>
+                  <input type="number" id="entradaParcQtd" min="1" step="1" value="1">
+                </label>
+                <label class="field">
+                  <span>Data de início</span>
+                  <input type="date" id="entradaParcInicio">
+                </label>
+                <label class="field">
+                  <span>Data de término</span>
+                  <input type="text" id="entradaParcFim" readonly tabindex="-1" placeholder="Calculada">
+                </label>
+              </div>
+              <p class="hint">
+                Fórmula: entrada − (sinal − comissão).
+                Parcela estimada: <strong id="outParcelaEntrada">R$ 0,00</strong>
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <!-- ETAPA 4 -->
+        <section class="panel">
+          <div class="panel__header">
+            <p class="step-label">Etapa 4</p>
+            <h2>Demais pagamentos</h2>
+            <p>Juros de obra e ITBI + cartório. Informe sempre a data de início.</p>
+          </div>
+
+          <div class="payment-blocks">
+            <article class="payment-card">
+              <h3>Juros de obra</h3>
+              <div class="grid grid--4">
+                <label class="field">
+                  <span>Valor de cada parcela (R$)</span>
+                  <input type="text" inputmode="decimal" class="money" id="jurosValor" placeholder="0,00">
+                </label>
+                <label class="field">
+                  <span>Quantidade de parcelas</span>
+                  <input type="number" id="jurosQtd" min="1" step="1" value="1">
+                </label>
+                <label class="field">
+                  <span>Data de início</span>
+                  <input type="date" id="jurosInicio">
+                </label>
+                <label class="field">
+                  <span>Data de término</span>
+                  <input type="text" id="jurosFim" readonly tabindex="-1" placeholder="Calculada">
+                </label>
+              </div>
+              <p class="hint">Total dos juros de obra: <strong id="outTotalJuros">R$ 0,00</strong></p>
+            </article>
+
+            <article class="payment-card">
+              <div class="payment-card__head">
+                <h3>ITBI + Cartório</h3>
+                <label class="check">
+                  <input type="checkbox" id="itbiGratuito">
+                  <span>Gratuito</span>
+                </label>
+              </div>
+              <div class="grid grid--4" id="itbiFields">
+                <label class="field">
+                  <span>Valor total (R$)</span>
+                  <input type="text" inputmode="decimal" class="money" id="itbiValor" placeholder="0,00">
+                </label>
+                <label class="field">
+                  <span>Quantidade de parcelas</span>
+                  <input type="number" id="itbiQtd" min="1" step="1" value="1">
+                </label>
+                <label class="field">
+                  <span>Data de início</span>
+                  <input type="date" id="itbiInicio">
+                </label>
+                <label class="field">
+                  <span>Data de término</span>
+                  <input type="text" id="itbiFim" readonly tabindex="-1" placeholder="Calculada">
+                </label>
+              </div>
+              <p class="hint" id="hintItbi">Parcela estimada: <strong id="outParcelaItbi">R$ 0,00</strong></p>
+            </article>
+          </div>
+
+          <div class="result-strip result-strip--soft" style="margin-top: 1rem;">
+            <div class="result-strip__item">
+              <span>Total encargos (fin. + obra)</span>
+              <strong id="outTotalEncargos">R$ 0,00</strong>
+            </div>
+            <div class="result-strip__item">
+              <span>Custo total estimado</span>
+              <strong id="outCustoTotal">R$ 0,00</strong>
+            </div>
+            <div class="result-strip__item result-strip__item--accent">
+              <span>% a mais sobre o imóvel</span>
+              <strong id="outPercAMais">0,00%</strong>
+            </div>
+          </div>
+        </section>
+
+        <div class="actions">
+          <button type="button" class="btn btn--ghost" id="btnLimpar">Limpar formulário</button>
+          <button type="button" class="btn btn--primary" id="btnResumo">Ver resumo financeiro</button>
+        </div>
+      </section>
+
+      <!-- RESUMO -->
+      <section id="view-summary" class="view" aria-label="Resumo financeiro" hidden>
+        <section class="panel">
+          <div class="panel__header">
+            <h2>Resumo financeiro</h2>
+            <p>Confira os valores antes de gerar o relatório em PDF.</p>
+          </div>
+
+          <div class="summary-block">
+            <h3>Resumo do imóvel</h3>
+            <dl class="summary-list" id="resumoImovel"></dl>
+          </div>
+
+          <div class="summary-block">
+            <h3>Custo total e juros</h3>
+            <dl class="summary-list" id="resumoJuros"></dl>
+          </div>
+
+          <div class="summary-block">
+            <h3>Cronograma por rubrica</h3>
+            <div class="table-wrap">
+              <table class="data-table" id="tabelaCronograma">
+                <thead>
+                  <tr>
+                    <th>Descrição</th>
+                    <th>Valor</th>
+                    <th>Parcelas</th>
+                    <th>Período</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="summary-block">
+            <h3>Cronograma mensal (mês a mês)</h3>
+            <p class="section-note">Soma, em cada mês, sinal, comissão, entrada parcelada, juros de obra, ITBI e financiamento.</p>
+            <div class="table-wrap table-wrap--tall">
+                  <table class="data-table data-table--monthly" id="tabelaMensal">
+                <thead>
+                  <tr>
+                    <th>Mês</th>
+                    <th>Sinal</th>
+                    <th>Entrada</th>
+                    <th>Juros obra</th>
+                    <th>ITBI</th>
+                    <th>Financiamento</th>
+                    <th>Total do mês</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+                <tfoot></tfoot>
+              </table>
+            </div>
+          </div>
+
+          <div class="summary-block">
+            <h3>Totais</h3>
+            <dl class="summary-list summary-list--totals" id="resumoTotais"></dl>
+          </div>
+
+          <div class="alerts" id="alertsResumo" role="status" aria-live="polite"></div>
+        </section>
+
+        <div class="actions">
+          <button type="button" class="btn btn--ghost" id="btnVoltar">Voltar e editar</button>
+          <button type="button" class="btn btn--accent" id="btnPdf">Gerar relatório PDF</button>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer no-print">
+      <span>Funciona offline · Sem cadastro · Dados apenas neste navegador</span>
+    </footer>
+  </div>
+
+  <div id="print-document" class="print-document" aria-hidden="true">
+    <header class="print-header">
+      <div class="print-header__bar"></div>
+      <h1>Simulação de Financiamento Imobiliário</h1>
+      <p class="print-meta"><strong>Corretor:</strong> <span id="pdfCorretor"></span></p>
+      <p class="print-meta"><strong>Data da simulação:</strong> <span id="pdfData"></span></p>
+    </header>
+
+    <section class="print-section">
+      <h2>1. Resumo do imóvel</h2>
+      <table class="print-table" id="pdfResumoImovel"></table>
+    </section>
+
+    <section class="print-section">
+      <h2>2. Resumo do financiamento</h2>
+      <table class="print-table" id="pdfResumoFinanciamento"></table>
+    </section>
+
+    <section class="print-section">
+      <h2>3. Composição da entrada</h2>
+      <table class="print-table" id="pdfComposicaoEntrada"></table>
+      <p class="print-note">Valores consolidados da entrada: sinal no ato e demais parcelas do restante.</p>
+    </section>
+
+    <section class="print-section">
+      <h2>4. Custo total e juros</h2>
+      <table class="print-table" id="pdfJuros"></table>
+    </section>
+
+    <section class="print-section">
+      <h2>5. Cronograma por rubrica</h2>
+      <table class="print-table print-table--schedule" id="pdfCronograma">
+        <thead>
+          <tr>
+            <th>Descrição</th>
+            <th>Valor</th>
+            <th>Parcelas</th>
+            <th>Período</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section class="print-section print-section--monthly">
+      <h2>6. Cronograma mensal (mês a mês)</h2>
+      <table class="print-table print-table--monthly" id="pdfMensal">
+        <thead>
+          <tr>
+            <th>Mês</th>
+            <th>Sinal</th>
+            <th>Entrada</th>
+            <th>Juros obra</th>
+            <th>ITBI</th>
+            <th>Financ.</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+        <tfoot></tfoot>
+      </table>
+    </section>
+
+    <section class="print-section">
+      <h2>7. Resumo geral dos valores</h2>
+      <table class="print-table" id="pdfResumoGeral"></table>
+    </section>
+
+    <section class="print-section">
+      <h2>8. Observações importantes</h2>
+      <ul class="print-obs" id="pdfObservacoes"></ul>
+      <p class="print-disclaimer">
+        Esta simulação é uma estimativa comercial elaborada pelo corretor e não constitui proposta vinculante
+        da instituição financeira. Valores de financiamento, taxas, seguros e tarifas estão sujeitos à análise
+        de crédito e condições vigentes na data da contratação.
+      </p>
+    </section>
+
+    <footer class="print-footer">
+      <span>Simulador Imobiliário</span>
+      <span class="page-number"></span>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

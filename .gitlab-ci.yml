@@ -1,0 +1,14 @@
+# Publica o site estático no GitLab Pages
+# URL típica: https://<usuario-ou-grupo>.gitlab.io/<projeto>/
+
+pages:
+  stage: deploy
+  image: alpine:latest
+  script:
+    - mkdir -p public
+    - cp index.html styles.css app.js README.md public/
+  artifacts:
+    paths:
+      - public
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
